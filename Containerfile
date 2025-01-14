@@ -1,4 +1,7 @@
-FROM ghcr.io/ublue-os/bazzite-gnome:stable as phosphophypr
+ARG FEDORA_MAJOR_VERSION="${FEDORA_MAJOR_VERSION:-41}"
+ARG BASE_IMAGE="ghcr.io/ublue-os/bazzite-gnome"
+
+FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION} as phosphophypr
 
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:stable
@@ -8,6 +11,14 @@ FROM ghcr.io/ublue-os/bazzite-gnome:stable as phosphophypr
 # Universal Blue Images: https://github.com/orgs/ublue-os/packages
 # Fedora base image: quay.io/fedora/fedora-bootc:41
 # CentOS base images: quay.io/centos-bootc/centos-bootc:stream10
+
+COPY system_files/desktop/shared system_files/desktop/hyprland /
+
+# Removes basic Gnome implementation
+RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+    rpm-ostree override remove gnome-shell && \
+    /usr/libexec/containerbuild/cleanup.sh && \
+    ostree container commit
 
 # Setup Copr repos
 RUN --mount=type=cache,dst=/var/cache/rpm-ostree \

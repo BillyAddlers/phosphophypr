@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=false
+Terminal=false
+Exec=/usr/share/ublue-os/docs/serve.sh
+Icon=/usr/share/ublue-os/bazzite/docs.svg
+Name=Documentation
+Comment=View Bazzite Documentation
+Categories=Utility;

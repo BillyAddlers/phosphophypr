@@ -1,0 +1,176 @@
+#!/bin/bash
+
+image="$(echo "$2" | cut -d ':' -f1)"
+branch="$(echo "$2" | cut -d ':' -f2)"
+
+IMAGE_INFO="/usr/share/ublue-os/image-info.json"
+DEFAULT_IMAGE=$(jq -r '."image-name"' < $IMAGE_INFO)
+DEFAULT_BRANCH=stable
+
+
+helptext=$(cat << EOF
+
+====== Bazzite Rollback Helper Util ======
+
+This tool aims to help with rollbacks and rebases
+
+NOTE: Rebasing to different desktop environments usually breaks things and is unsupported
+
+Usage: bazzite-rollback-helper [OPTION] [ARGUMENT]
+
+Options:
+  list [BRANCH]      List available Bazzite images, Default is "$DEFAULT_BRANCH"
+  rollback           Rolls back to previously installed Bazzite image. alias for "rpm-ostree rollback"
+  current            Show currently active Bazzite image
+  rebase             Rebase/rollback to specified Bazzite image, Default is $DEFAULT_IMAGE:$DEFAULT_BRANCH
+
+Examples:
+  bazzite-rollback-helper list stable
+  bazzite-rollback-helper rollback
+  bazzite-rollback-helper current
+  bazzite-rollback-helper rebase 40-stable-20240722
+  bazzite-rollback-helper rebase bazzite-deck:40-stable-20240722
+  bazzite-rollback-helper rebase bazzite-deck:stable
+  bazzite-rollback-helper rebase stable
+  bazzite-rollback-helper rebase testing
+
+For more help, visit https://discord.bazzite.gg.
+
+EOF
+)
+
+
+function list_images() {
+  local _help="\
+List images with a specified tag
+
+INPUTS:
+  \$1: branch   Branch we want to get tags from.
+                Fallbacks to \"$DEFAULT_BRANCH\"
+"
+  if [[ $* =~ --help ]]; then
+    echo "$_help" && return
+  fi
+  local branch=${1:-$DEFAULT_BRANCH}
+  local regex='.Tags[]'
+  regex="$regex"\ ' | select(test("^PLACEHOLDER|^PLACEHOLDER-(?:\\d+\\.\\d+|\\d+)"))'
+  regex=${regex//PLACEHOLDER/$branch}
+  echo -e >&2 "Listing images for $branch\nThis can take a bit of time..."
+  skopeo list-tags docker://ghcr.io/ublue-os/bazzite | jq -r "$regex"
+}
+
+function current() {
+  local _help="\
+Show currently active Bazzite image"
+  if [[ $* =~ --help ]]; then
+    echo "$_help" && return
+  fi
+
+  rpm-ostree status -vb
+}
+
+function rollback() {
+  local _help="Rolls back to previously installed Bazzite image. alias for \"rpm-ostree rollback\""
+  if [[ $* =~ --help ]]; then
+    echo "$_help" && return
+  fi
+
+  rpm-ostree rollback && \
+    echo >&2 "Reboot for changes to take effect"
+}
+
+function rebase() {
+  local _help="\
+Rebase/rollback to specified Bazzite image, Default is $DEFAULT_IMAGE:$DEFAULT_BRANCH
+
+INPUTS:
+  \$1: branch   Branch we want to rebase. Format must be 
+                one of the following:
+                  - ostree-image (ex.: 'ostree-image-signed:docker://ghcr.io/ublue-os/bazzite:stable')
+                  - NAME:TAG (ex.: 'bazzite:stable-40')
+                  - TAG (ex.: 'testing')
+                Fallbacks to \"$DEFAULT_BRANCH\"\
+"
+  if [[ $* =~ --help ]]; then
+  local _help
+    echo "$_help" && return
+  fi
+
+  # Skip asking for confirmation by passing the '-y' flag
+  local CONFIRM_YES
+  CONFIRM_YES=$(
+    while (( $# )); do
+      case "$1" in
+        -y|--yes) echo 1; return ;;
+      esac
+      shift
+    done
+    echo 0
+  )
+
+  # Fetch our image reference prefix (ex.: ostree-image-signed:docker://ghcr.io/ublue-os)
+  # from rpm-ostree
+  local base_img_pfx
+  base_img_pfx=$(rpm-ostree status -b --json | jq -r '.deployments[]["container-image-reference"]')
+  base_img_pfx=${base_img_pfx///${DEFAULT_IMAGE}*/}
+
+  local img_ref # Final image ref string to rebase
+  local usr_inpt="$1"
+  case "$usr_inpt" in
+  "") echo >&2 "$_help"; return ;;
+  ostree-image-*)
+    # ostree-image
+    # echo >&2 "Format detected"
+    img_ref=$usr_inpt
+  ;;
+  *:*)
+    # IMG_NAME:TAG
+    # echo >&2 "Format detected: IMG_NAME:TAG"
+    img_ref="$base_img_pfx"/"$usr_inpt"
+  ;;
+  *)
+    # TAG
+    # echo >&2 "Format detected: TAG"
+    img_ref="$base_img_pfx"/"$DEFAULT_IMAGE":"$usr_inpt"
+  ;;
+  esac
+
+  # Ask for confirmation. If is okay, rebase.
+  local question="\
+Rebasing to $img_ref. Continue? [Y/n]: "
+  local yn
+  if [[ $CONFIRM_YES -ne 1 ]]; then
+    read -rp "$question" yn
+    yn=${yn:=y} # Default to yes
+  else yn=y
+  fi
+  case $yn in
+    # Finally, rebase
+    [yY]) rpm-ostree rebase "$img_ref" || return 1 ;;
+    *) echo >&2 "Stopping rebase..."; return 1 ;;
+  esac
+}
+
+if [[ "$1" == "list" ]]; then
+  list_images "${@:2}"
+  exit
+
+elif [[ "$1" == "rollback" ]]; then
+  rollback "${@:2}"
+  exit
+
+elif [[ "$1" == "current" ]]; then
+  current "${@:2}"
+  exit
+
+elif [[ "$1" == "rebase" ]]; then
+  rebase "${@:2}"
+  exit
+
+# display the helptext
+elif [[ "$1" == "-h" || "$1" == "--h" || "$1" == "-help" || "$1" == "--help" || "$1" == "help" || -z "$1" ]]; then
+ echo "$helptext"
+else
+ echo "Unsupported Option: $1"
+ echo "run 'bazzite-rollback-helper help' for more details"
+fi

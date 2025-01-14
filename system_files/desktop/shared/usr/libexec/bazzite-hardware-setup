@@ -1,0 +1,392 @@
+#!/usr/bin/bash
+
+IMAGE_INFO="/usr/share/ublue-os/image-info.json"
+IMAGE_NAME=$(jq -r '."image-name"' < $IMAGE_INFO)
+IMAGE_BRANCH=$(jq -r '."image-branch"' < $IMAGE_INFO)
+IMAGE_FLAVOR=$(jq -r '."image-flavor"' < $IMAGE_INFO)
+FEDORA_VERSION=$(jq -r '."fedora-version"' < $IMAGE_INFO)
+
+# SCRIPT VERSION
+HWS_VER=53
+HWS_VER_FILE="/etc/bazzite/hws_version"
+HWS_VER_RAN=$(cat $HWS_VER_FILE)
+
+# IMAGE IDENTIFIERS
+KNOWN_IMAGE_NAME_FILE="/etc/bazzite/image_name"
+KNOWN_IMAGE_NAME=$(cat $KNOWN_IMAGE_NAME_FILE)
+KNOWN_IMAGE_BRANCH_FILE="/etc/bazzite/image_branch"
+KNOWN_IMAGE_BRANCH=$(cat $KNOWN_IMAGE_BRANCH_FILE)
+KNOWN_IMAGE_FLAVOR_FILE="/etc/bazzite/image_flavor"
+KNOWN_IMAGE_FLAVOR=$(cat $KNOWN_IMAGE_FLAVOR_FILE)
+KNOWN_FEDORA_VERSION_FILE="/etc/bazzite/fedora_version"
+KNOWN_FEDORA_VERSION=$(cat $KNOWN_FEDORA_VERSION_FILE)
+
+# GLOBAL
+SYS_ID="$(/usr/libexec/hwsupport/sysid)"
+VEN_ID="$(cat /sys/devices/virtual/dmi/id/chassis_vendor)"
+CPU_VENDOR=$(grep "vendor_id" "/proc/cpuinfo" | uniq | awk -F": " '{ print $2 }')
+CPU_MODEL=$(grep "model name" "/proc/cpuinfo" | uniq | awk -F": " '{ print $2 }')
+MINIMUM_FREE_ZRAM=$(awk '/MemTotal/ {printf "%.0f", $2 * 0.01}' /proc/meminfo)
+CURRENT_FREE_ZRAM=$(sysctl vm.min_free_kbytes | awk '{print $3}')
+KARGS=$(rpm-ostree kargs)
+NEEDED_KARGS=()
+
+# Add directory for fixups
+mkdir -p /etc/bazzite/fixups
+
+# UPDATES
+if [[ -f /var/ublue-update/branch ]]; then
+  echo "Removing previously used branch selection file"
+  rm -f /var/ublue-update/branch
+fi
+
+# KERNEL ARGUMENTS
+echo "Current kargs: $KARGS"
+
+if /usr/libexec/hwsupport/valve-hardware || /usr/libexec/hwsupport/hhd-supported-hardware; then
+  echo "Checking for ppfeaturemask karg on hardware that requires it"
+  if [[ ! $KARGS =~ "ppfeaturemask" ]]; then
+    NEEDED_KARGS+=("--append-if-missing="$(printf 'amdgpu.ppfeaturemask=0x%x\n' "$(($(cat /sys/module/amdgpu/parameters/ppfeaturemask) | 0x4000))"))
+  fi
+fi
+
+if /usr/libexec/hwsupport/valve-hardware; then
+  echo "Checking for needed karg changes (Jupiter/Galileo)"
+
+  if [[ ! $KARGS =~ "amd_iommu" ]]; then
+    NEEDED_KARGS+=("--append-if-missing=amd_iommu=off")
+  fi
+
+  if [[ ! $KARGS =~ "amdgpu.gttsize" ]]; then
+    if [[ "$(awk '/MemTotal/{print $(NF-1)}' /proc/meminfo)" == "31664740" ]]; then
+      echo "32GB RAM Steam Deck detected"
+      NEEDED_KARGS+=("--append-if-missing=amdgpu.gttsize=16256")
+    else
+      NEEDED_KARGS+=("--append-if-missing=amdgpu.gttsize=8128")
+    fi
+  fi
+
+  echo "Turning off pstate for power consumption reasons"
+  if [[ $KARGS =~ "amd_pstate=passive" ]]; then
+    NEEDED_KARGS+=("--delete-if-present=amd_pstate=passive")
+  fi
+
+  if [[ ! $KARGS =~ "amd_pstate" ]]; then
+    NEEDED_KARGS+=("--append-if-missing=amd_pstate=disable")
+  fi
+fi
+
+if [[ $IMAGE_NAME =~ "deck" && ":AOKZOE A1 AR07:" =~ ":$SYS_ID:" ]]; then
+  echo "AOKZOE A1 on deck build detected, fixing edid"
+  if [[ ! $KARGS =~ "drm.edid_firmware" ]]; then
+    NEEDED_KARGS+=("--append-if-missing=drm.edid_firmware=eDP-1:edid/aokzoea1ar07_edid.bin")
+  fi
+fi
+
+if [[ ":Framework:" =~ ":$VEN_ID:" ]]; then
+  if [[ "AuthenticAMD" == "$CPU_VENDOR" ]]; then
+    if [[ ! $KARGS =~ "iomem" ]]; then
+      echo "AMD Framework Laptop detected, adding needed kargs for ryzenadj"
+      NEEDED_KARGS+=("--append-if-missing=iomem=relaxed")
+    fi
+  elif [[ "GenuineIntel" == "$CPU_VENDOR" ]]; then
+    if [[ ! $KARGS =~ "hid_sensor_hub" ]]; then
+      echo "Intel Framework Laptop detected, applying needed keyboard fix"
+      NEEDED_KARGS+=("--append-if-missing=module_blacklist=hid_sensor_hub");
+    fi
+  fi
+fi
+
+if [[ ":83E1:" =~ ":$SYS_ID:" ]]; then
+  if [[ ! $KARGS =~ "video" ]]; then
+    echo "Adding panel orientation for Lenovo Legion Go"
+    NEEDED_KARGS+=("--append-if-missing=video=eDP-1:panel_orientation=left_side_up")
+  fi
+  if [[ ! $KARGS =~ "amdgpu.gttsize" ]]; then
+    echo "Adding GTTSize for Lenovo Legion Go"
+    NEEDED_KARGS+=("--append-if-missing=amdgpu.gttsize=8128")
+  fi
+  if [[ ! $KARGS =~ "amdgpu.sg_display" ]]; then
+    echo "Adding SG Display for Lenovo Legion Go"
+    NEEDED_KARGS+=("--append-if-missing=amdgpu.sg_display=0")
+  fi
+elif [[ ":ROG Ally RC71L:" =~ ":$SYS_ID:" ]]; then
+  if [[ ! $KARGS =~ "amdgpu.gttsize" ]]; then
+    echo "Adding GTTSize for ASUS Ally"
+    NEEDED_KARGS+=("--append-if-missing=amdgpu.gttsize=8128")
+  fi
+  if [[ ! $KARGS =~ "amdgpu.sg_display" ]]; then
+    echo "Adding SG Display for ASUS Ally"
+    NEEDED_KARGS+=("--append-if-missing=amdgpu.sg_display=0")
+  fi
+elif [[ ":ROG Ally X RC72LA:" =~ ":$SYS_ID:" ]]; then
+  if [[ ! $KARGS =~ "amdgpu.gttsize" ]]; then
+    echo "Adding GTTSize for ASUS Ally X"
+    NEEDED_KARGS+=("--append-if-missing=amdgpu.gttsize=12192")
+  fi
+  if [[ ! $KARGS =~ "amdgpu.sg_display" ]]; then
+    echo "Adding SG Display for ASUS Ally X"
+    NEEDED_KARGS+=("--append-if-missing=amdgpu.sg_display=0")
+  fi
+elif [[ ":G1617-01:" =~ ":$SYS_ID:" && ! $CPU_MODEL =~ 8640U|8840U|7640U ]]; then
+  if [[ ! $KARGS =~ "video" ]]; then
+    echo "Adding panel orientation for GPD Win Mini 2023"
+    NEEDED_KARGS+=("--append-if-missing=video=eDP-1:panel_orientation=right_side_up")
+  fi
+elif [[ ":G1617-01:" =~ ":$SYS_ID:" ]]; then
+  echo "Removing panel orientation for GPD Win Mini 2024 if exists"
+  NEEDED_KARGS+=("--delete-if-present=video=eDP-1:panel_orientation=right_side_up")
+elif [[ ":WIN2:" =~ ":$SYS_ID:" ]]; then
+  if [[ ! $KARGS =~ "video" ]]; then
+    echo "Adding panel orientation for GPD Win 2"
+    NEEDED_KARGS+=("--append-if-missing=video=eDP-1:panel_orientation=right_side_up")
+  fi
+fi
+
+if [[ ":ONEXPLAYER F1:ONEXPLAYER F1L:ONEXPLAYER F1 EVA-01:" =~ ":$SYS_ID:" ]]; then
+  if [[ ! $KARGS =~ "video" ]]; then
+    echo "Adding panel orientation for ONEXPLAYER F1 & ONEXFLY"
+    NEEDED_KARGS+=("--append-if-missing=video=eDP-1:panel_orientation=left_side_up")
+  fi
+  if [[ "$(awk '/MemTotal/{print $(NF-1)}' /proc/meminfo)" == "31664740" ]]; then
+    if [[ ! $KARGS =~ "amdgpu.gttsize" ]]; then
+      echo "Adding GTTSize for ONEXPLAYER (32GB RAM)"
+      NEEDED_KARGS+=("--append-if-missing=amdgpu.gttsize=16256")
+    fi
+  fi
+fi
+
+if [[ ! $KARGS =~ "disable_ertm" ]]; then
+  echo "Adding needed kargs for bluetooth"
+  NEEDED_KARGS+=("--append-if-missing=bluetooth.disable_ertm=1")
+fi
+
+if [[ ! $KARGS =~ "preempt" ]]; then
+  echo "Adding needed kargs for full preemption"
+  NEEDED_KARGS+=("--append-if-missing=preempt=full")
+fi
+
+if [[ $KARGS =~ "nomodeset" ]]; then
+  echo "Removing nomodeset"
+  NEEDED_KARGS+=("--delete-if-present=nomodeset")
+fi
+
+if [[ -n "$NEEDED_KARGS" ]]; then
+  echo "Found needed karg changes, applying the following: ${NEEDED_KARGS[*]}"
+  plymouth display-message --text="Updating kargs - Please wait, this may take a while" || true
+  rpm-ostree kargs ${NEEDED_KARGS[*]} --reboot || exit 1
+else
+  echo "No karg changes needed"
+fi
+
+if [[ $IMAGE_NAME =~ "deck" || $IMAGE_NAME =~ "ally" ]]; then
+  if /usr/libexec/hwsupport/valve-hardware; then
+    if [[ ":Jupiter:" =~ ":$SYS_ID:" ]]; then
+      RESOLUTION=$(lshw -json -c display | jq -r .[]."configuration"."resolution")
+      if [[ "${RESOLUTION}" = "1200,1920" ]]; then
+        echo "Jupiter with DeckHD detected, disabling BIOS updates..."
+        systemctl disable --now jupiter-biosupdate.service
+      elif [[ "$(awk '/MemTotal/{print $(NF-1)}' /proc/meminfo)" == "31664740" ]]; then
+        echo "Jupiter with 32GB RAM detected, disabling BIOS updates..."
+        systemctl disable --now jupiter-biosupdate.service
+      fi
+    fi
+
+    systemctl enable --now jupiter-fan-control.service
+    systemctl enable --now vpower.service
+  else
+    echo "Generic device detected. Performing setup..."
+    systemctl disable --now jupiter-fan-control.service
+    systemctl disable --now vpower.service
+    systemctl disable --now jupiter-biosupdate.service
+    systemctl disable --now jupiter-controller-update.service
+    systemctl disable --now ryzenadj.service
+    systemctl disable --now batterylimit.service
+  fi
+  systemctl enable --now ds-inhibit.service
+fi
+
+# FSTAB CONFIGURATION
+if [[ ! -e /etc/ublue-os/.fstab_adjusted.flag && $(grep "compress=zstd" /etc/fstab) ]]; then
+    echo "Applying fstab param adjustments"
+    if grep -q '64GB' <<< "$(lsblk -o MODEL)"; then
+        echo "64GB eMMC detected"
+        sed -i 's/compress=zstd:1/noatime,lazytime,discard=sync,compress-force=zstd:3,space_cache=v2/g' /etc/fstab
+    else
+        sed -i 's/compress=zstd:1/noatime,lazytime,commit=120,discard=async,compress-force=zstd:1,space_cache=v2/g' /etc/fstab
+    fi
+    touch /etc/ublue-os/.fstab_adjusted.flag
+else
+    echo "No fstab param adjustments needed"
+fi
+
+# ZRAM MINIMUM-FREE CONFIGURATION
+echo "Current minimum-free ZRAM value: $CURRENT_FREE_ZRAM"
+
+if ((MINIMUM_FREE_ZRAM > CURRENT_FREE_ZRAM)); then
+    sysctl -w "vm.min_free_kbytes=${MINIMUM_FREE_ZRAM}"
+    echo "Found needed minimum-free ZRAM changes, applying the following: ${MINIMUM_FREE_ZRAM}"
+else
+  echo "No minimum-free ZRAM changes needed"
+fi
+
+# FRAMEWORK AMD FIXES
+if [[ ":Framework:" =~ ":$VEN_ID:" ]]; then
+  if [[ "AuthenticAMD" == "$CPU_VENDOR" ]]; then
+    # Load Ryzen SMU on AMD Framework Laptops
+    if ! [[ -f "/etc/modules-load.d/ryzen_smu.conf" ]]; then
+      mkdir -p "/etc/modules-load.d"
+      printf "# Load ryzen_smu driver upon startup\nryzen_smu\n" >> "/etc/modules-load.d/ryzen_smu.conf"
+    fi
+    # Framework 13 AMD fixes
+    if [[ $SYS_ID == "Laptop ("* ]]; then
+      if [[ ! -f /etc/modprobe.d/alsa.conf ]]; then
+        echo 'Fixing 3.5mm jack'
+        echo "options snd-hda-intel index=1,0 model=auto,dell-headset-multi" > /etc/modprobe.d/alsa.conf
+        echo 0 > /sys/module/snd_hda_intel/parameters/power_save
+      fi
+      if [[ ! -f /etc/udev/rules.d/20-suspend-fixes.rules ]]; then
+        echo 'Fixing suspend issue'
+        echo "ACTION==\"add\", SUBSYSTEM==\"serio\", DRIVERS==\"atkbd\", ATTR{power/wakeup}=\"disabled\"" > /etc/udev/rules.d/20-suspend-fixes.rules
+      fi
+    fi
+  fi
+fi
+
+# SURFACE FIXES
+if [[ ":Microsoft:" =~ ":$VEN_ID:" ]]; then
+  if ! [[ -f "/etc/modules-load.d/surface.conf" ]]; then
+    if [[ "AuthenticAMD" == "$CPU_VENDOR" ]]; then
+      printf "# Support GPIO pins on AMD Surfaces\npinctrl_amd\n" > "/etc/modules-load.d/surface.conf"
+    elif [[ "GenuineIntel" == "$CPU_VENDOR" ]]; then
+      sed 's/^ *//' > "/etc/modules-load.d/surface.conf" << EOF
+        # Support GPIO pins on Intel Surfaces
+        # Surface Book 2
+        pinctrl_sunrisepoint
+
+        # For Surface Laptop 3/Surface Book 3
+        pinctrl_icelake
+
+        # For Surface Laptop 4/Surface Laptop Studio
+        pinctrl_tigerlake
+
+        # For Surface Pro 9/Surface Laptop 5
+        pinctrl_alderlake
+
+        # For Surface Pro 10/Surface Laptop 6
+        pinctrl_meteorlake
+
+        # Support LPSS on Intel Surfaces
+        intel_lpss
+        intel_lpss_pci
+
+EOF
+    fi
+    sed 's/^ *//' >> "/etc/modules-load.d/surface.conf" << EOF
+      # Add modules necessary for Disk Encryption via keyboard
+      surface_aggregator
+      surface_aggregator_registry
+      surface_aggregator_hub
+      surface_hid_core
+      8250_dw
+
+      # Surface Laptop 3/Surface Book 3 and later
+      surface_hid
+      surface_kbd
+EOF
+  fi
+fi
+
+# WAYDROID FIX
+if [[ -f "/var/lib/waydroid/lxc/waydroid/config" ]]; then
+  echo "Removing unneeded apparmor entry from Waydroid LXC"
+  sed -i '/lxc\.apparmor\.profile\s*=\s*unconfined/d' "/var/lib/waydroid/lxc/waydroid/config"
+fi
+
+# HOSTNAME FIX
+# If the hostname is too long Distrobox will fail during setup
+# Let's check the length and reset it to something sensible if that happens.
+if (( $(hostname | wc -m) > 20 )); then
+  hostnamectl set-hostname bazzite
+fi
+
+# PPD FIX
+# Correct broken config files on some systems
+if [[ -f "/etc/tuned/ppd.conf" ]] && ! grep "\[battery\]" "/etc/tuned/ppd.conf"; then
+  cp -f "/usr/etc/tuned/ppd.conf" "/etc/tuned/ppd.conf"
+fi
+
+# Set default target to graphical, fixes rebase from base image
+if grep -qv "graphical.target" <<< "$(systemctl get-default)"; then
+  systemctl set-default graphical.target
+fi
+
+# Cleanup btrfs oopsie
+# default config has a 10 year limit, which is rediculous
+# FIXME: This fix was added in 12/2024, remove it in a few months
+if [ ! -f /etc/bazzite/fixups/snapper_cleanup ] &&
+  [ -f /etc/snapper/configs/root ] &&
+  [ $(snapper --no-headers --csvout -c root get-config --columns key,value | grep "TIMELINE_LIMIT_YEARLY,10" ) ] &&
+  [ $(snapper --no-headers --csvout -c root get-config --columns key,value | grep "SUBVOLUME,/var/home" ) ]; then
+  echo "DELETING SNAPPER SNAPSHOTS CREATED BY A PREVIOUS UPDATE"
+  echo "THIS IS FOR /var/home. IF YOU INTENDED THIS CHANGE, "
+  echo "RECREATE YOUR CONFIG AND MAKE SURE TIMELINE_LIMIT_YEARLY=\"10\""
+  echo "IS SET TO SOMETHING DIFFERENT."
+  SNAPSHOTS=$(snapper --no-headers --csvout --config root list --columns number,description | grep timeline | awk -F, '{print $1}')
+  if [ -n "$SNAPSHOTS" ]; then
+    snapper -c root delete $SNAPSHOTS
+  fi
+  snapper -c root delete-config
+fi
+touch /etc/bazzite/fixups/snapper_cleanup
+
+if [ ! -f /etc/bazzite/fixups/grub_fixup ]; then
+  # Grub settings
+  # Set grub timeout to 3 seconds
+  if [ -z $(grep "GRUB_TIMEOUT=" /etc/default/grub) ]; then
+    echo "GRUB_TIMEOUT=3" >> /etc/default/grub
+  else
+    sed -i 's/GRUB_TIMEOUT=[0-9]*/GRUB_TIMEOUT=3/' /etc/default/grub
+  fi
+
+  # Nuke hidden timeout as it will cause issues if GRUB_TIMEOUT exists
+  if [ -n $(grep "GRUB_HIDDEN_TIMEOUT=" /etc/default/grub) ]; then
+    sed -i 's/GRUB_HIDDEN_TIMEOUT=[0-9]*//' /etc/default/grub
+  fi
+
+  # set timeout style to menu to show grub during countdown
+  # (unless GRUB_TIMEOUT=0)
+  if [ -z $(grep "GRUB_TIMEOUT_STYLE=" /etc/default/grub) ]; then
+    echo "GRUB_TIMEOUT_STYLE=menu" >> /etc/default/grub
+  else
+    sed -i 's/GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=menu/' /etc/default/grub
+  fi
+
+  # Autohide grub menu if boot is successful
+  # menu_auto_hide=2 hides grub menu if previous boot is successful
+  # menu_auto_hide=1 same, except not if Windows/Other OS is installed
+  # Deck images cant use grub menu and often dual boot, so hide it always
+  # For desktop images, hide it only if no other OS is installed
+  if [[ $IMAGE_NAME =~ "deck" ]]; then
+    grub2-editenv - set menu_auto_hide=2
+  else
+    grub2-editenv - set menu_auto_hide=1
+  fi
+
+  # Update grub
+  if [ -d /sys/firmware/efi ]; then
+    echo "Updating EFI grub config"
+    grub2-mkconfig -o /etc/grub2-efi.cfg
+  else
+    echo "Updating BIOS grub config"
+    grub2-mkconfig -o /etc/grub2.cfg
+  fi
+fi
+touch /etc/bazzite/fixups/grub_fixup
+
+mkdir -p /etc/bazzite
+echo $HWS_VER > $HWS_VER_FILE
+echo $IMAGE_NAME > $KNOWN_IMAGE_NAME_FILE
+echo $IMAGE_FLAVOR > $KNOWN_IMAGE_FLAVOR_FILE
+echo $FEDORA_VERSION > $KNOWN_FEDORA_VERSION_FILE
+echo $IMAGE_BRANCH > $KNOWN_IMAGE_BRANCH_FILE

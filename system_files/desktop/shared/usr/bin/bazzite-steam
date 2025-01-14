@@ -1,0 +1,103 @@
+#!/usr/bin/bash
+
+IMAGE_INFO="/usr/share/ublue-os/image-info.json"
+IMAGE_NAME=$(jq -r '."image-name"' < $IMAGE_INFO)
+SYS_ID="$(cat /sys/devices/virtual/dmi/id/product_name)"
+
+DECK_OPTION=""
+
+if [[ $IMAGE_NAME =~ "deck" || $IMAGE_NAME =~ "ally" ]]; then
+  if [ ! -d $HOME/.local/share/Steam ]; then
+    # Set up steam with the bootstrap before starting it, this allows steam to run for the first time even with no network access
+    if [[ -f "/usr/share/gamescope-session-plus/bootstrap_steam.tar.gz" ]]; then
+        mkdir -p ~/.local/share
+        tar xf /usr/share/gamescope-session-plus/bootstrap_steam.tar.gz -C ~/.local/share
+    fi
+  fi
+
+  DECK_STARTUP="/usr/share/ublue-os/bazzite/bazzite.webm"
+  DECK_SUSPEND="/usr/share/ublue-os/bazzite/bazzite-suspend.webm"
+  OLED_STARTUP="/usr/share/ublue-os/bazzite/bazzite-oled.webm"
+  OLED_SUSPEND="/usr/share/ublue-os/bazzite/bazzite-suspend-oled.webm"
+
+  # Check for Galileo model
+  if [[ ":Galileo:" =~ ":$SYS_ID:" ]]; then
+    VIDEO_STARTUP=$OLED_STARTUP
+    VIDEO_SUSPEND=$OLED_SUSPEND
+  else
+    VIDEO_STARTUP=$DECK_STARTUP
+    VIDEO_SUSPEND=$DECK_SUSPEND
+  fi
+
+  # Install Bazzite's Steam Game Mode Startup & Suspend Videos
+  mkdir -p $HOME/.local/share/Steam/config/uioverrides/movies
+
+  if [ ! -f $HOME/.local/share/Steam/config/uioverrides/movies/bazzite_novideo ]; then
+
+    LOCATION_STARTUP=$HOME/.local/share/Steam/config/uioverrides/movies/deck_startup.webm
+    LOCATION_SUSPEND=$HOME/.local/share/Steam/config/uioverrides/movies/steam_os_suspend.webm
+    LOCATION_SUSPEND_OLD=$HOME/.local/share/Steam/config/uioverrides/movies/deck-suspend-animation.webm
+    LOCATION_THROBBER=$HOME/.local/share/Steam/config/uioverrides/movies/steam_os_suspend_from_throbber.webm
+    LOCATION_THROBBER_OLD=$HOME/.local/share/Steam/config/uioverrides/movies/deck-suspend-animation-from-throbber.webm
+
+    if ! cmp --silent $VIDEO_STARTUP $LOCATION_STARTUP; then
+      cp $VIDEO_STARTUP $LOCATION_STARTUP
+    fi
+
+    if ! cmp --silent $VIDEO_SUSPEND $LOCATION_SUSPEND; then
+      cp $VIDEO_SUSPEND $LOCATION_SUSPEND
+    fi
+    
+    if ! cmp --silent $VIDEO_SUSPEND $LOCATION_SUSPEND_OLD; then
+      cp $VIDEO_SUSPEND $LOCATION_SUSPEND_OLD
+    fi
+
+    if ! cmp --silent $VIDEO_SUSPEND $LOCATION_THROBBER; then
+      cp $VIDEO_SUSPEND $LOCATION_THROBBER
+    fi
+    
+    if ! cmp --silent $VIDEO_SUSPEND $LOCATION_THROBBER_OLD; then
+      cp $VIDEO_SUSPEND $LOCATION_THROBBER_OLD
+    fi
+
+  fi
+
+  # Required to maintain the Steam update branch between desktop & Steam Game Mode
+  DECK_OPTION="-steamdeck"
+
+  # HHD Support
+  if ! /usr/libexec/hwsupport/valve-hardware; then
+      export SDL_GAMECONTROLLERCONFIG="060000000d0f00009601000000000000,Steam Controller (HHD),a:b0,b:b1,x:b2,y:b3,back:b6,guide:b8,start:b7,leftstick:b9,rightstick:b10,leftshoulder:b4,rightshoulder:b5,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,leftx:a0,lefty:a1,rightx:a3,righty:a4,lefttrigger:a2,righttrigger:a5,paddle1:b13,paddle2:b12,paddle3:b15,paddle4:b14,misc2:b11,misc3:b16,misc4:b17,crc:ea35,"
+  fi
+
+elif [ -f $HOME/.local/share/Steam/ubuntu12_32/steamui.so ]; then
+  # Make sure Steam has been successfully started at least once. This is needed for desktop images that don't use a bootstrap archive
+
+  # Apply Steam Download Speed Fix if not already applied
+  if [ ! -f $HOME/.local/share/Steam/steam_dev.cfg ]; then
+    bash -c 'printf "@nClientDownloadEnableHTTP2PlatformLinux 0\n@fDownloadRateImprovementToAddAnotherConnection 1.0\n" > $HOME/.local/share/Steam/steam_dev.cfg'
+  fi
+fi
+
+switcheroo_state="$(switcherooctl list)"
+DGPU_OPTION=""
+# If we're running this on a dGPU in a multi-gpu AMD/Intel system, apply a workaround for the blank Steam window bug
+if [[ $(echo "${switcheroo_state}" | grep -o 'Device:' | wc -l) -gt 1 ]]; then
+  # TODO: Check if -system-composer is needed with nvidia >=555 driver
+  if ! grep -Pq 'Name:\s+NVIDIA' <<< "$switcheroo_state"; then
+    DGPU_OPTION="-system-composer"
+  fi
+fi
+unset -v switcheroo_state
+
+if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
+  # https://github.com/Supreeeme/extest
+  # Extest is a drop in replacement for the X11 XTEST extension.
+  # It creates a virtual device with the uinput kernel module.
+  # It's been primarily developed for allowing the desktop functionality
+  # on the Steam Controller to work while Steam is open on Wayland.
+  # Also supports Steam Input as a whole.
+  env LD_PRELOAD=/usr/lib/extest/libextest.so /usr/bin/steam "$DECK_OPTION" "$DGPU_OPTION" "$@"
+else
+  /usr/bin/steam "$DECK_OPTION" "$DGPU_OPTION" "$@"
+fi
