@@ -14,11 +14,11 @@ FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION} as phosphophypr
 
 COPY system_files/desktop/shared system_files/desktop/hyprland /
 
-# Removes basic Gnome implementation
-RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
-    rpm-ostree override remove gnome-shell && \
-    /usr/libexec/containerbuild/cleanup.sh && \
-    ostree container commit
+# # Removes basic Gnome implementation
+# RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+#     rpm-ostree override remove gnome-shell && \
+#     /usr/libexec/containerbuild/cleanup.sh && \
+#     ostree container commit
 
 # Setup Copr repos
 RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
