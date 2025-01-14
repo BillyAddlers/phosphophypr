@@ -110,11 +110,11 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     /usr/libexec/containerbuild/cleanup.sh && \
 #     ostree container commit
 
-# Install Zen Browser as Firefox replacement
-RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
-    rpm-ostree install zen-browser && \
-    /usr/libexec/containerbuild/cleanup.sh && \
-    ostree container commit
+# # Install Zen Browser as Firefox replacement
+# RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+#     rpm-ostree install zen-browser && \
+#     /usr/libexec/containerbuild/cleanup.sh && \
+#     ostree container commit
 
 # Cleanup and Finalize
 RUN /usr/libexec/containerbuild/image-info && \
