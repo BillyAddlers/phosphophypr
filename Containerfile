@@ -3,6 +3,8 @@ ARG BASE_IMAGE="ghcr.io/ublue-os/bazzite-gnome"
 
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION} as phosphophypr
 
+ARG FEDORA_MAJOR_VERSION="${FEDORA_MAJOR_VERSION:-41}"
+
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:stable
 # FROM ghcr.io/ublue-os/bluefin-nvidia:stable
