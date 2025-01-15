@@ -245,19 +245,33 @@ jobs:
         with:
           string: ${{ env.IMAGE_REGISTRY }}
 
+      # Push the image to GHCR (Image Registry)
       - name: Push To GHCR
-        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
-        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: Wandalen/wretry.action@v3.8.0
         id: push
-        env:
-          REGISTRY_USER: ${{ github.actor }}
-          REGISTRY_PASSWORD: ${{ github.token }}
+        if: github.event_name != 'pull_request'
         with:
-          registry: ${{ steps.registry_case.outputs.lowercase }}
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ steps.metadata.outputs.tags }}
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
+          attempt_limit: 3
+          attempt_delay: 15000
+          command: |
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+            for tag in ${{ steps.generate-tags.outputs.alias_tags }}; do
+              sudo skopeo copy ${{ steps.rechunk.outputs.ref }} docker://${{ steps.registry_case.outputs.lowercase }}/${{ env.IMAGE_NAME }}:$tag
+            done
+
+      # - name: Push To GHCR
+      #   uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
+      #   if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      #   id: push
+      #   env:
+      #     REGISTRY_USER: ${{ github.actor }}
+      #     REGISTRY_PASSWORD: ${{ github.token }}
+      #   with:
+      #     registry: ${{ steps.registry_case.outputs.lowercase }}
+      #     image: ${{ env.IMAGE_NAME }}
+      #     tags: ${{ steps.metadata.outputs.tags }}
+      #     username: ${{ env.REGISTRY_USER }}
+      #     password: ${{ env.REGISTRY_PASSWORD }}
 
       # This section is optional and only needs to be enabled if you plan on distributing
       # your project for others to consume. You will need to create a public and private key
