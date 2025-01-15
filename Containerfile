@@ -159,7 +159,7 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     ostree container commit
 
 # # Cleanup and Finalize
-# COPY system_files/override /
+# COPY system_files/overrides /
 # RUN /usr/libexec/containerbuild/image-info && \
 #     systemctl disable gdm.service && \
 #     systemctl enable sddm.service && \
@@ -170,7 +170,8 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 
 # Temporary Cleanup and Finalize
 COPY system_files/overrides /
-RUN /usr/libexec/containerbuild/image-info && \
+RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
+    /usr/libexec/containerbuild/image-info && \
     /usr/libexec/containerbuild/build-initramfs && \
     /usr/libexec/containerbuild/cleanup.sh && \
     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
