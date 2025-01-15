@@ -195,7 +195,7 @@ jobs:
             --build-arg SHA_HEAD_SHORT=${{ env.SHA_HEAD_SHORT }} \
             --build-arg VERSION_TAG=${{ steps.generate-version.outputs.tag }} \
             --build-arg VERSION_PRETTY="${{ steps.generate-version.outputs.pretty }}" \
-            --tag ${{ env.DEFAULT_TAG }} .
+            --tag ${{ env.IMAGE_NAME }} .
 
       - name: Remove auxiliary images
         # We are tight on space, need at least 2x for OSTree
@@ -214,7 +214,7 @@ jobs:
           ref: "localhost/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
           prev-ref: "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
           skip_compression: true
-          version: ${{ env.CENTOS_VERSION }}
+          version: ${{ env.FEDORA_MAJOR_VERSION }}
           labels: ${{ steps.metadata.outputs.labels }} # Rechunk strips out all the labels during build, this needs to be reapplied here with newline separator
 
       # This is necessary so that the podman socket can find the rechunked image on its storage
