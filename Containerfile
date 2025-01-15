@@ -11,6 +11,7 @@ FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION} as phosphophypr
 ARG FEDORA_MAJOR_VERSION="${FEDORA_MAJOR_VERSION:-41}"
 ARG IMAGE_NAME="${IMAGE_NAME:-phosphophypr}"
 ARG IMAGE_VENDOR="${IMAGE_VENDOR:-billyaddlers}"
+ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:stable
