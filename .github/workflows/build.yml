@@ -26,6 +26,7 @@ env:
   PUSH_IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   KERNEL_FLAVOR: "bazzite" # the flavor of the kernel
   KERNEL_VERSION: "6.12.8-201.bazzite.fc41.x86_64" # the version of the kernel
+  DEFAULT_TAG: "latest" # the default tag for the image
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.brand_name}}-${{ inputs.stream_name }}
