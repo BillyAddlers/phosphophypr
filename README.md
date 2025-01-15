@@ -1,7 +1,7 @@
 # Phosphophypr
 
 <p align="center">
-  <a href=""><img src="/repo_files/phosphophyllite.png" alt="Phosphophyllite"/></a>
+  <a href=""><img src="/repo_files/phosphophyllite.jpg" alt="Phosphophyllite"/></a>
 </p>
 
 > Phosphophypr is a Hyprland-focused Fedora Atomic Image tailored for your personal needs.
