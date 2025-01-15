@@ -138,7 +138,7 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 # Cleanup and Finalize
 RUN /usr/libexec/containerbuild/image-info && \
     systemctl disable gdm.service && \
-    systemctl enable sddm.service \
+    systemctl enable sddm.service && \
     /usr/libexec/containerbuild/cleanup.sh && \
     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     ostree container commit

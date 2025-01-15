@@ -110,6 +110,7 @@ jobs:
         with:
           remove-codeql: true
 
+      # Pulling the main image and rechunking it is necessary to avoid common failures.
       - name: Pull main, rechunk images
         uses: Wandalen/wretry.action@v3.8.0
         with:
