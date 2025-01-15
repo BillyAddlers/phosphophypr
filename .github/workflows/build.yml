@@ -195,7 +195,7 @@ jobs:
             --build-arg SHA_HEAD_SHORT=${{ env.SHA_HEAD_SHORT }} \
             --build-arg VERSION_TAG=${{ steps.generate-version.outputs.tag }} \
             --build-arg VERSION_PRETTY="${{ steps.generate-version.outputs.pretty }}" \
-            --tag raw-img .
+            --tag ${{ env.DEFAULT_TAG }} .
 
       - name: Remove auxiliary images
         # We are tight on space, need at least 2x for OSTree
