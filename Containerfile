@@ -130,8 +130,7 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     hyprlang \
     hyprcursor \
     hyprutils \
-    hyprgraphics \
-    hyprwayland-scanner && \
+    hyprgraphics && \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
 
