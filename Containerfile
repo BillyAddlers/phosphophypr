@@ -169,7 +169,7 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     ostree container commit
 
 # Temporary Cleanup and Finalize
-COPY system_files/override /
+COPY system_files/overrides /
 RUN /usr/libexec/containerbuild/image-info && \
     /usr/libexec/containerbuild/build-initramfs && \
     /usr/libexec/containerbuild/cleanup.sh && \
