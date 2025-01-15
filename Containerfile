@@ -118,6 +118,7 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     qt5-qtwayland \
     qt6-qtwayland \
     xdg-desktop-portal-hyprland \
+    sddm \
     polkit-kde && \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
