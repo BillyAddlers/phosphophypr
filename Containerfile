@@ -123,6 +123,18 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
 
+# Install additional Hypr packages
+RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+    rpm-ostree install \
+    aquamarine \
+    hyprlang \
+    hyprcursor \
+    hyprutils \
+    hyprgraphics \
+    hyprwayland-scanner && \
+    /usr/libexec/containerbuild/cleanup.sh && \
+    ostree container commit
+
 # # Install Cloudflare WARP
 # RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     rpm-ostree install cloudflare-warp && \
