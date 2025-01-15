@@ -6,6 +6,7 @@ ARG BASE_IMAGE="ghcr.io/ublue-os/${SOURCE_IMAGE}"
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 ARG IMAGE_FLAVOR="${IMAGE_FLAVOR:-main}"
 ARG KERNEL_VERSION="${KERNEL_VERSION:-6.12.5-204.bazzite.fc41.x86_64}"
+ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-bazzite}"
 ARG SHA_HEAD_SHORT="${SHA_HEAD_SHORT}"
 ARG VERSION_TAG="${VERSION_TAG}"
 ARG VERSION_PRETTY="${VERSION_PRETTY}"
@@ -19,6 +20,7 @@ ARG IMAGE_NAME="${IMAGE_NAME:-phosphophypr}"
 ARG IMAGE_VENDOR="${IMAGE_VENDOR:-billyaddlers}"
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-main}"
 ARG IMAGE_FLAVOR="${IMAGE_FLAVOR:-main}"
+ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-bazzite}"
 ARG SHA_HEAD_SHORT="${SHA_HEAD_SHORT}"
 ARG VERSION_TAG="${VERSION_TAG}"
 ARG VERSION_PRETTY="${VERSION_PRETTY}"
@@ -134,6 +136,16 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
 
+# Install new packages
+RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+    rpm-ostree install \
+    zsh \
+    zsh-autosuggestions \
+    tmux \
+    starship && \
+    /usr/libexec/containerbuild/cleanup.sh && \
+    ostree container commit
+
 # # Install Cloudflare WARP
 # RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     rpm-ostree install cloudflare-warp && \
@@ -147,14 +159,19 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     ostree container commit
 
 # # Cleanup and Finalize
+# COPY system_files/override /
 # RUN /usr/libexec/containerbuild/image-info && \
 #     systemctl disable gdm.service && \
 #     systemctl enable sddm.service && \
+#     /usr/libexec/containerbuild/build-initramfs && \
 #     /usr/libexec/containerbuild/cleanup.sh && \
 #     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
 #     ostree container commit
 
 # Temporary Cleanup and Finalize
+COPY system_files/override /
 RUN /usr/libexec/containerbuild/image-info && \
+    /usr/libexec/containerbuild/build-initramfs && \
     /usr/libexec/containerbuild/cleanup.sh && \
+    mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     ostree container commit
