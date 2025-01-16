@@ -1,0 +1,16 @@
+[SddmGreeterTheme]
+Name=Sequoia
+Description=A modern nerd-font based SDDM theme
+Author=minMelody
+Copyright=Copyright (C) 2025 minMelody
+License=GPLv3
+Type=sddm-theme
+Version=1.5
+Website=https://codeberg.org/minMelody/sddm-sequoia
+Screenshot=preview.png
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+Theme-Id=sequoia
+Theme-API=2.15
+QtVersion=6
