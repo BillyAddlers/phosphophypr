@@ -71,7 +71,7 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     curl -Lo /etc/yum.repos.d/_copr_alebastr-sway-extras.repo https://copr.fedorainfracloud.org/coprs/alebastr/sway-extras/repo/fedora-"${FEDORA_MAJOR_VERSION}"/alebastr-sway-extras-fedora-"${FEDORA_MAJOR_VERSION}".repo && \
     curl -Lo /etc/yum.repos.d/_copr_aeiro-nwg-shell.repo https://copr.fedorainfracloud.org/coprs/aeiro/nwg-shell/repo/fedora-"${FEDORA_MAJOR_VERSION}"/aeiro-nwg-shell-fedora-"${FEDORA_MAJOR_VERSION}".repo && \
     curl -Lo /etc/yum.repos.d/zsh-autosuggest.repo https://download.opensuse.org/repositories/shells:zsh-users:zsh-autosuggestions/Fedora_Rawhide/shells:zsh-users:zsh-autosuggestions.repo && \
-    curl -Lo /etc/yum.repos.d/cloudflare-warp.repo https://pkg.cloudflareclient.com/cloudflare-warp-ascii.repo && \
+    curl -fsSl https://pkg.cloudflareclient.com/cloudflare-warp-ascii.repo | tee /etc/yum.repos.d/cloudflare-warp.repo && \
     curl -Lo /etc/yum.repos.d/tailscale.repo https://pkgs.tailscale.com/stable/fedora/tailscale.repo && \
     sed -i 's@gpgcheck=1@gpgcheck=0@g' /etc/yum.repos.d/tailscale.repo && \
     sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/negativo17-fedora-multimedia.repo && \
@@ -147,8 +147,9 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     ostree container commit
 
 # Install Cloudflare WARP
-RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
-    rpm-ostree install \
+# Experimental install using DNF
+RUN --mount=type=cache,dst=/var/cache/dnf \
+    dnf5 install \
     nss-tools \
     cloudflare-warp && \
     /usr/libexec/containerbuild/cleanup.sh && \
