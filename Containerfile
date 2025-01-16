@@ -147,7 +147,6 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     ostree container commit
 
 # Install Cloudflare WARP
-# Experimental install using DNF
 RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     rpm-ostree install --assumeyes \
     nss-tools \
@@ -165,22 +164,23 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     ostree container commit
 
 # # Cleanup and Finalize
-# COPY system_files/overrides /
-# RUN /usr/libexec/containerbuild/image-info && \
-#     systemctl disable gdm.service && \
-#     systemctl enable sddm.service && \
-#     /usr/libexec/containerbuild/build-initramfs && \
-#     /usr/libexec/containerbuild/cleanup.sh && \
-#     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
-#     ostree container commit
-
-# Temporary Cleanup and Finalize
 COPY system_files/overrides /
 # Had to manually copy session files to override Hyprland's default session files
 COPY system_files/desktop/hyprland/usr/share/wayland-sessions /usr/share/wayland-sessions
+COPY system_files/desktop/hyprland/etc /etc
 RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     /usr/libexec/containerbuild/image-info && \
+    systemctl disable gdm.service && \
+    systemctl enable sddm.service && \
     /usr/libexec/containerbuild/build-initramfs && \
     /usr/libexec/containerbuild/cleanup.sh && \
     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     ostree container commit
+
+# Temporary Cleanup and Finalize
+# RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
+#     /usr/libexec/containerbuild/image-info && \
+#     /usr/libexec/containerbuild/build-initramfs && \
+#     /usr/libexec/containerbuild/cleanup.sh && \
+#     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
+#     ostree container commit
