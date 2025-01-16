@@ -148,10 +148,11 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 
 # Install Cloudflare WARP
 # Experimental install using DNF
-RUN --mount=type=cache,dst=/var/cache/dnf \
-    dnf5 install \
+RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+    rpm-ostree install --assumeyes \
     nss-tools \
-    cloudflare-warp && \
+    cloudflare-warp \
+    || true && \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
 
