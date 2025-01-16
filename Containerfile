@@ -142,6 +142,9 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     zsh \
     zsh-autosuggestions \
     tmux \
+    cascadia-code-nf-fonts \
+    cascadia-mono-nf-fonts \
+    nerd-fonts \
     starship && \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
@@ -163,11 +166,13 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     /usr/libexec/containerbuild/cleanup.sh && \
 #     ostree container commit
 
-# # Cleanup and Finalize
+# Cleanup and Finalize
 COPY system_files/overrides /
 # Had to manually copy session files to override Hyprland's default session files
 COPY system_files/desktop/hyprland/usr/share/wayland-sessions /usr/share/wayland-sessions
 COPY system_files/desktop/hyprland/etc /etc
+COPY system_files/desktop/hyprland/usr/share/sddm/themes /usr/share/sddm/themes
+# Build initramfs and release information
 RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     /usr/libexec/containerbuild/image-info && \
     systemctl disable gdm.service && \
@@ -176,11 +181,3 @@ RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     /usr/libexec/containerbuild/cleanup.sh && \
     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     ostree container commit
-
-# Temporary Cleanup and Finalize
-# RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
-#     /usr/libexec/containerbuild/image-info && \
-#     /usr/libexec/containerbuild/build-initramfs && \
-#     /usr/libexec/containerbuild/cleanup.sh && \
-#     mkdir -p /var/tmp && chmod 1777 /var/tmp && \
-#     ostree container commit

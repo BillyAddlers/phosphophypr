@@ -28,8 +28,25 @@ rpm-ostree rebase ostree-unverified-registry:ghcr.io/billyaddlers/phosphophypr:s
 
 Nvidia Proprietary Variant coming soon!
 
-**For users with Secure Boot enabled:** Follow our [secure boot documentation](#secure-boot) prior to rebasing.
+**For users with Secure Boot enabled:** Follow Bazzite's [secure boot documentation](#secure-boot) prior to rebasing.
 
 ### SteamDeck/Handhelds
 
-**coming soon**
+coming soon!
+
+## Secure Boot
+
+> [!WARNING]  
+> **Steam Deck Users: The Steam Deck does not come with secure boot enabled and does not ship with any keys enrolled by default. Do not enable this unless you absolutely know what you're doing.**
+
+Secure boot is supported with our custom key. The pub key can be found in the root of this repository [here](https://github.com/ublue-os/bazzite/blob/main/secure_boot.der).
+If you'd like to enroll this key prior to installation or rebase, download the key and run the following:
+
+```bash
+sudo mokutil --timeout -1
+sudo mokutil --import secure_boot.der
+```
+
+For users already on a Universal Blue image, you may instead run `ujust enroll-secure-boot-key`.
+
+If asked for a password, use `universalblue`.
