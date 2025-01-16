@@ -146,13 +146,17 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
 
-# # Install Cloudflare WARP
-# RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
-#     rpm-ostree install cloudflare-warp && \
-#     /usr/libexec/containerbuild/cleanup.sh && \
-#     ostree container commit
+# Install Cloudflare WARP
+RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
+    rpm-ostree install \
+    nss-tools \
+    cloudflare-warp && \
+    /usr/libexec/containerbuild/cleanup.sh && \
+    ostree container commit
 
 # # Install Zen Browser as Firefox replacement
+# # We're moving Zen Browser to Flatpak instead of 
+# # layering to make container size smaller.
 # RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 #     rpm-ostree install zen-browser && \
 #     /usr/libexec/containerbuild/cleanup.sh && \
@@ -170,6 +174,8 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
 
 # Temporary Cleanup and Finalize
 COPY system_files/overrides /
+# Had to manually copy session files to override Hyprland's default session files
+COPY system_files/desktop/hyprland/usr/share/wayland-sessions /usr/share/wayland-sessions
 RUN mkdir -p /var/tmp && chmod 1777 /var/tmp && \
     /usr/libexec/containerbuild/image-info && \
     /usr/libexec/containerbuild/build-initramfs && \
