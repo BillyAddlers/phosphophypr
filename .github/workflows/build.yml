@@ -224,8 +224,8 @@ jobs:
             sudo apt update
             sudo apt install sbsigntool curl openssl
           fi
-          TMP=$(sudo podman create raw-img bash)
-          sudo podman cp $TMP:/usr/lib/modules/${{ matrix.kernel_version }}/vmlinuz .
+          TMP=$(sudo podman create localhost/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }} bash)
+          sudo podman cp $TMP:/usr/lib/modules/${{ env.KERNEL_VERSION }}/vmlinuz .
           sudo podman rm $TMP
           sudo chmod 666 vmlinuz # might not be needed
           sbverify --list vmlinuz
