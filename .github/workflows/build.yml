@@ -206,6 +206,7 @@ jobs:
             --build-arg VERSION_PRETTY="${{ steps.generate-version.outputs.pretty }}" \
             --tag ${{ env.IMAGE_NAME }} .
 
+      # Remove auxiliary images.
       - name: Remove auxiliary images
         # We are tight on space, need at least 2x for OSTree
         run: |
@@ -230,7 +231,7 @@ jobs:
         with:
           rechunk: "ghcr.io/hhd-dev/rechunk:v1.1.2"
           ref: "localhost/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
-          prev-ref: "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
+          prev-ref: "${{ steps.registry_case.outputs.lowercase }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}"
           skip_compression: true
           version: ${{ env.FEDORA_MAJOR_VERSION }}
           labels: ${{ steps.metadata.outputs.labels }} # Rechunk strips out all the labels during build, this needs to be reapplied here with newline separator
