@@ -204,6 +204,15 @@ jobs:
         run: |
           sudo podman image rm ${{ env.PULL_IMAGE_REGISTRY }}/${{ env.BASE_IMAGE_NAME }}-${{ env.BASE_IMAGE_FLAVOR }}:${{ env.FEDORA_VERSION }}
 
+      # Workaround bug where capital letters in your GitHub username make it impossible to push to GHCR.
+      # https://github.com/macbre/push-to-ghcr/issues/12
+      # Need to lowercase the registry before doing rechunk.
+      - name: Lowercase Registry
+        id: registry_case
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ env.IMAGE_REGISTRY }}
+
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
       # Documentation for Rechunk is provided on their github repository at https://github.com/hhd-dev/rechunk
@@ -288,14 +297,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Workaround bug where capital letters in your GitHub username make it impossible to push to GHCR.
-      # https://github.com/macbre/push-to-ghcr/issues/12
-      - name: Lowercase Registry
-        id: registry_case
-        uses: ASzc/change-string-case-action@v6
-        with:
-          string: ${{ env.IMAGE_REGISTRY }}
 
       # Push the image to GHCR (Image Registry)
       - name: Push To GHCR
