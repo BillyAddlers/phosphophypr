@@ -1,16 +1,19 @@
-# Welcome to Bazzite 󰊴
+# Welcome to Phosphophypr 󰊴
+
 󱋩 `%IMAGE_NAME%:%IMAGE_BRANCH%`
 
-|  Command | Description |
-| ------- | ----------- |
-| `ujust`  | List all available commands |
-| `ujust toggle-user-motd` | Toggle this banner on/off |
-| `ujust changelog` | View changelog |
-| `fastfetch` | View system information |
+|  Command                | Description                 |
+| ------------------------ | --------------------------- |
+| `ujust`                  | List all available commands |
+| `ujust toggle-user-motd` | Toggle this banner on/off   |
+| `ujust changelog`        | View changelog              |
+| `ujust install-hypr`     | Install Hyprland dotfiles   |
+| `fastfetch`              | View system information     |
 
 %TIP%
-- **** [Report an issue](https://github.com/ublue-os/bazzite/issues)
-- **󰈙** [Documentation](http://docs.bazzite.gg/)
-- **󰙯** [Discord](https://discord.bazzite.gg/)
-- **󰫑** [Mastodon](https://fosstodon.org/@UniversalBlue)
-- **** [Bluesky](https://bsky.app/profile/bazzite.gg)
+
+- **** [Report an issue](https://github.com/billyaddlers/phosphophypr/issues)
+- **󰈙** [Documentation](http://docs.phosphophypr.shirovi.my.id)
+- **󰙯** [Discord](https://discord.gg/Qcf6VUDspY)
+- **󰫑** [Mastodon](https://fosstodon.org/@phosphophypr)
+- **** [Bluesky](https://blueskyuniversal.com)
