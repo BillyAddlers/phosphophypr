@@ -299,7 +299,7 @@ jobs:
             # Per fedora version
             BUILD_TAGS+=("${FEDORA_VERSION}-stable")
             BUILD_TAGS+=("stable-${FEDORA_VERSION}") # flip ver to be last
-            
+
             if [ -n "$LATEST" ]; then
               BUILD_TAGS+=("latest" "stable")
             fi
