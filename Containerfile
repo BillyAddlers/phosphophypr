@@ -158,14 +158,6 @@ RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
     /usr/libexec/containerbuild/cleanup.sh && \
     ostree container commit
 
-# # Install Zen Browser as Firefox replacement
-# # We're moving Zen Browser to Flatpak instead of 
-# # layering to make container size smaller.
-# RUN --mount=type=cache,dst=/var/cache/rpm-ostree \
-#     rpm-ostree install zen-browser && \
-#     /usr/libexec/containerbuild/cleanup.sh && \
-#     ostree container commit
-
 # Cleanup and Finalize
 COPY system_files/overrides /
 # Had to manually copy session files to override Hyprland's default session files
